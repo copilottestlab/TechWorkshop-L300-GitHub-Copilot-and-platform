@@ -1,3 +1,5 @@
+using Azure.Core;
+using Azure.Identity;
 using ZavaStorefront.Services;
 using ZavaStorefront.Models;
 
@@ -19,6 +21,7 @@ builder.Services.AddSession(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ProductService>();
 builder.Services.AddScoped<CartService>();
+builder.Services.AddSingleton<TokenCredential>(_ => new DefaultAzureCredential());
 builder.Services.Configure<FoundryOptions>(builder.Configuration.GetSection("Foundry"));
 builder.Services.PostConfigure<FoundryOptions>(options =>
 {

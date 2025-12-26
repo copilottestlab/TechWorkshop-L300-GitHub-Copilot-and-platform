@@ -4,7 +4,6 @@ param location string
 param appServicePlanId string
 param appInsightsConnectionString string = ''
 param foundryEndpoint string = ''
-param foundryApiKey string = ''
 @description('Port the container listens on (ASP.NET 8 container default: 8080)')
 param containerPort string = '8080'
 
@@ -34,12 +33,6 @@ var optionalAppSettings = concat(
     {
       name: 'AZURE_FOUNDRY_ENDPOINT'
       value: foundryEndpoint
-    }
-  ],
-  empty(foundryApiKey) ? [] : [
-    {
-      name: 'AZURE_FOUNDRY_API_KEY'
-      value: foundryApiKey
     }
   ]
 )

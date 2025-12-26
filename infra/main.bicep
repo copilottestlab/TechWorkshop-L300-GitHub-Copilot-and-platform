@@ -25,7 +25,6 @@ module webApp 'modules/webApp.bicep' = {
     appServicePlanId: appServicePlan.outputs.planId
     appInsightsConnectionString: appInsights.outputs.connectionString
     foundryEndpoint: foundry.outputs.foundryEndpoint
-    foundryApiKey: foundry.outputs.foundryPrimaryKey
   }
 }
 

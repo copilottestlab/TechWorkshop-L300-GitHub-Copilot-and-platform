@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Azure.Core;
 using Microsoft.Extensions.Options;
 using ZavaStorefront.Models;
 
@@ -13,13 +15,15 @@ public class FoundryChatService
     private readonly HttpClient _httpClient;
     private readonly ILogger<FoundryChatService> _logger;
     private readonly FoundryOptions _options;
+    private readonly TokenCredential _credential;
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
-    public FoundryChatService(HttpClient httpClient, IOptions<FoundryOptions> options, ILogger<FoundryChatService> logger)
+    public FoundryChatService(HttpClient httpClient, IOptions<FoundryOptions> options, ILogger<FoundryChatService> logger, TokenCredential credential)
     {
         _httpClient = httpClient;
         _logger = logger;
         _options = options.Value;
+        _credential = credential;
     }
 
     public async Task<string> GetChatCompletionAsync(string prompt, CancellationToken cancellationToken = default)
@@ -37,7 +41,7 @@ public class FoundryChatService
 
         ValidateEndpoint(endpointUri);
 
-        var apiKey = _options.ApiKey ?? throw new InvalidOperationException("AZURE_FOUNDRY_API_KEY / Foundry:ApiKey is not configured.");
+        var apiKey = _options.ApiKey;
         var deployment = _options.DeploymentName;
         if (string.IsNullOrWhiteSpace(deployment))
         {
@@ -63,7 +67,7 @@ public class FoundryChatService
             Content = new StringContent(JsonSerializer.Serialize(payload, _jsonOptions), Encoding.UTF8, "application/json")
         };
 
-        request.Headers.Add("api-key", apiKey);
+        await AttachAuthenticationAsync(request, apiKey, cancellationToken);
 
         _logger.LogInformation("Sending chat request to Foundry deployment {Deployment} at {Endpoint}", deployment, endpointUri.Host);
 
@@ -99,6 +103,19 @@ public class FoundryChatService
         }
 
         return reply.Trim();
+    }
+
+    private async Task AttachAuthenticationAsync(HttpRequestMessage request, string? apiKey, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(apiKey))
+        {
+            request.Headers.Add("api-key", apiKey);
+            return;
+        }
+
+        // Managed identity / workload identity path
+        var token = await _credential.GetTokenAsync(new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" }), cancellationToken);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
     }
 
     private sealed record ChatCompletionResponse
