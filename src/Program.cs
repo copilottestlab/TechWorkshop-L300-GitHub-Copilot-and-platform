@@ -30,6 +30,12 @@ builder.Services.PostConfigure<FoundryOptions>(options =>
     options.DeploymentName = builder.Configuration["AZURE_FOUNDRY_DEPLOYMENT"] ?? options.DeploymentName;
     options.ApiVersion = builder.Configuration["AZURE_FOUNDRY_API_VERSION"] ?? options.ApiVersion;
 });
+builder.Services.Configure<ContentSafetyOptions>(builder.Configuration.GetSection("ContentSafety"));
+builder.Services.PostConfigure<ContentSafetyOptions>(options =>
+{
+    options.Endpoint = builder.Configuration["AZURE_CONTENT_SAFETY_ENDPOINT"] ?? options.Endpoint;
+    options.ApiKey = builder.Configuration["AZURE_CONTENT_SAFETY_KEY"] ?? options.ApiKey;
+});
 builder.Services.AddHttpClient<FoundryChatService>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);

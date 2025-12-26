@@ -4,6 +4,8 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Azure;
+using Azure.AI.ContentSafety;
 using Azure.Core;
 using Microsoft.Extensions.Options;
 using ZavaStorefront.Models;
@@ -16,14 +18,19 @@ public class FoundryChatService
     private readonly ILogger<FoundryChatService> _logger;
     private readonly FoundryOptions _options;
     private readonly TokenCredential _credential;
+    private readonly ContentSafetyClient _contentSafetyClient;
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web);
 
-    public FoundryChatService(HttpClient httpClient, IOptions<FoundryOptions> options, ILogger<FoundryChatService> logger, TokenCredential credential)
+    public FoundryChatService(HttpClient httpClient, IOptions<FoundryOptions> options, IOptions<ContentSafetyOptions> safetyOptions, ILogger<FoundryChatService> logger, TokenCredential credential)
     {
         _httpClient = httpClient;
         _logger = logger;
         _options = options.Value;
         _credential = credential;
+
+        var csOpts = safetyOptions.Value;
+        var csEndpoint = csOpts.Endpoint ?? throw new InvalidOperationException("AZURE_CONTENT_SAFETY_ENDPOINT / ContentSafety:Endpoint is not configured.");
+        _contentSafetyClient = new ContentSafetyClient(new Uri(csEndpoint), credential);
     }
 
     public async Task<string> GetChatCompletionAsync(string prompt, CancellationToken cancellationToken = default)
@@ -31,6 +38,12 @@ public class FoundryChatService
         if (string.IsNullOrWhiteSpace(prompt))
         {
             throw new ArgumentException("Prompt cannot be empty.", nameof(prompt));
+        }
+
+        var safetyResult = await EvaluateSafetyAsync(prompt, cancellationToken);
+        if (!safetyResult.IsSafe)
+        {
+            return "Sorry, I can’t help with that request.";
         }
 
         var endpoint = _options.Endpoint?.TrimEnd('/') ?? throw new InvalidOperationException("AZURE_FOUNDRY_ENDPOINT / Foundry:Endpoint is not configured.");
@@ -124,6 +137,31 @@ public class FoundryChatService
         _logger.LogDebug("Using managed identity authentication for Foundry request.");
         var token = await _credential.GetTokenAsync(new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" }), cancellationToken);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
+    }
+
+    private async Task<(bool IsSafe)> EvaluateSafetyAsync(string prompt, CancellationToken cancellationToken)
+    {
+        var request = new AnalyzeTextOptions(
+            new List<TextCategory>
+            {
+                TextCategory.Violence,
+                TextCategory.Sexual,
+                TextCategory.Hate,
+                TextCategory.SelfHarm,
+                TextCategory.Jailbreak
+            },
+            new List<TextBlockItem>
+            {
+                new TextBlockItem(prompt)
+            });
+
+        var response = await _contentSafetyClient.AnalyzeTextAsync(request, cancellationToken);
+        var analyses = response.Value.CategoriesAnalysis;
+        var isUnsafe = analyses.Any(a => a.Severity >= 2);
+
+        _logger.LogInformation("Content Safety evaluated prompt. Unsafe={Unsafe}. Details={@Details}", isUnsafe, analyses);
+
+        return (!isUnsafe);
     }
 
     private sealed record ChatCompletionResponse
