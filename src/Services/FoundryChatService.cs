@@ -67,7 +67,7 @@ public class FoundryChatService
             Content = new StringContent(JsonSerializer.Serialize(payload, _jsonOptions), Encoding.UTF8, "application/json")
         };
 
-        await AttachAuthenticationAsync(request, apiKey, cancellationToken);
+        await AttachAuthenticationAsync(request, apiKey, endpointUri.Host, cancellationToken);
 
         _logger.LogInformation("Sending chat request to Foundry deployment {Deployment} at {Endpoint}", deployment, endpointUri.Host);
 
@@ -105,13 +105,19 @@ public class FoundryChatService
         return reply.Trim();
     }
 
-    private async Task AttachAuthenticationAsync(HttpRequestMessage request, string? apiKey, CancellationToken cancellationToken)
+    private async Task AttachAuthenticationAsync(HttpRequestMessage request, string? apiKey, string endpointHost, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             _logger.LogDebug("Using API key authentication for Foundry request.");
             request.Headers.Add("api-key", apiKey);
             return;
+        }
+
+        // Regional cognitive endpoints require API key; they don't support AAD tokens.
+        if (endpointHost.EndsWith("api.cognitive.microsoft.com", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("The regional cognitive endpoint requires an API key. To use managed identity, configure a workspace/custom endpoint (e.g., https://<name>.cognitiveservices.azure.com or https://<name>.services.ai.azure.com).");
         }
 
         // Managed identity / workload identity path
