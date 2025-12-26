@@ -56,6 +56,11 @@ public class ChatController : Controller
             _logger.LogWarning(ex, "Chat configuration or request failed.");
             return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
         }
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Chat request was canceled by the client.");
+            return StatusCode(StatusCodes.Status400BadRequest, new { error = "The request was canceled." });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error while processing chat message.");
