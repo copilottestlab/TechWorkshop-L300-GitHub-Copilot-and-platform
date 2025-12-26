@@ -109,11 +109,13 @@ public class FoundryChatService
     {
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
+            _logger.LogDebug("Using API key authentication for Foundry request.");
             request.Headers.Add("api-key", apiKey);
             return;
         }
 
         // Managed identity / workload identity path
+        _logger.LogDebug("Using managed identity authentication for Foundry request.");
         var token = await _credential.GetTokenAsync(new TokenRequestContext(new[] { "https://cognitiveservices.azure.com/.default" }), cancellationToken);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
     }
