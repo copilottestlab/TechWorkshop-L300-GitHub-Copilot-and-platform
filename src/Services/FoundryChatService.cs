@@ -40,8 +40,8 @@ public class FoundryChatService
             throw new ArgumentException("Prompt cannot be empty.", nameof(prompt));
         }
 
-        var safetyResult = await EvaluateSafetyAsync(prompt, cancellationToken);
-        if (!safetyResult.IsSafe)
+        var isSafe = await EvaluateSafetyAsync(prompt, cancellationToken);
+        if (!isSafe)
         {
             return "Sorry, I can’t help with that request.";
         }
@@ -139,21 +139,14 @@ public class FoundryChatService
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
     }
 
-    private async Task<(bool IsSafe)> EvaluateSafetyAsync(string prompt, CancellationToken cancellationToken)
+    private async Task<bool> EvaluateSafetyAsync(string prompt, CancellationToken cancellationToken)
     {
-        var request = new AnalyzeTextOptions(
-            new List<TextCategory>
-            {
-                TextCategory.Violence,
-                TextCategory.Sexual,
-                TextCategory.Hate,
-                TextCategory.SelfHarm,
-                TextCategory.Jailbreak
-            },
-            new List<TextBlockItem>
-            {
-                new TextBlockItem(prompt)
-            });
+        var request = new AnalyzeTextOptions(prompt);
+
+        request.Categories.Add(TextCategory.Violence);
+        request.Categories.Add(TextCategory.Sexual);
+        request.Categories.Add(TextCategory.Hate);
+        request.Categories.Add(TextCategory.SelfHarm);
 
         var response = await _contentSafetyClient.AnalyzeTextAsync(request, cancellationToken);
         var analyses = response.Value.CategoriesAnalysis;
@@ -161,7 +154,7 @@ public class FoundryChatService
 
         _logger.LogInformation("Content Safety evaluated prompt. Unsafe={Unsafe}. Details={@Details}", isUnsafe, analyses);
 
-        return (!isUnsafe);
+        return !isUnsafe;
     }
 
     private sealed record ChatCompletionResponse
