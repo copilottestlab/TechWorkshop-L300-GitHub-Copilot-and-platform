@@ -68,7 +68,8 @@ public class FoundryChatService
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             _logger.LogWarning("Foundry chat call failed with status {StatusCode}: {Body}", response.StatusCode, body);
-            throw new InvalidOperationException($"Foundry chat request failed: {response.StatusCode}");
+            var trimmedBody = body?.Length > 2000 ? body[..2000] + "…" : body;
+            throw new InvalidOperationException($"Foundry chat request failed: {response.StatusCode} | {trimmedBody}");
         }
 
         await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
