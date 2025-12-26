@@ -55,10 +55,7 @@ public class FoundryChatService
             Content = new StringContent(JsonSerializer.Serialize(payload, _jsonOptions), Encoding.UTF8, "application/json")
         };
 
-        if (!request.Headers.Contains("api-key"))
-        {
-            request.Headers.Add("api-key", apiKey);
-        }
+        request.Headers.Add("api-key", apiKey);
 
         _logger.LogInformation("Sending chat request to Foundry deployment {Deployment}", deployment);
 
