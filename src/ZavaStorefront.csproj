@@ -9,8 +9,9 @@
    <ItemGroup>
     <PackageReference Include="System.Text.Encodings.Web" Version="4.7.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.0" />
     <PackageReference Include="Azure.Identity" Version="1.11.4" />
+    <PackageReference Include="Azure.AI.ContentSafety" Version="1.0.0" />
  </ItemGroup>
 
 </Project>
